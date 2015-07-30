@@ -719,10 +719,15 @@ class XcodeProject(PBXDict):
 
         return groups
 
-    def get_build_phases(self, phase_name):
-        phases = [p for p in self.objects.values() if p.get('isa') == phase_name]
-
-        return phases
+    def get_build_phases(self, phase_name,target='All'):
+        phase_keys = [p for p in self.objects.keys() if self.objects.get(p).get('isa') == phase_name]
+        if target == 'All':
+            return [self.objects.get(p) for p in phase_keys]
+        targets = [t for t in self.get_build_phases('PBXNativeTarget') + self.get_build_phases('PBXAggregateTarget') if t.get('name') == target]
+        target_phase_keys = []
+        for t in targets:
+            target_phase_keys += [p for p in phase_keys if p in t.get('buildPhases')]
+        return [self.objects.get(p) for p in target_phase_keys]
 
     def get_relative_path(self, os_path):
         return os.path.relpath(os_path, self.source_root)
@@ -858,18 +863,17 @@ class XcodeProject(PBXDict):
         head, tail = ntpath.split(path)
         return tail or ntpath.basename(head)
 
-    def add_file_if_doesnt_exist(self, f_path, parent=None, tree='SOURCE_ROOT', create_build_files=True, weak=False, ignore_unknown_type=False):
+    def add_file_if_doesnt_exist(self, f_path, parent=None, tree='SOURCE_ROOT', create_build_files=True, weak=False, ignore_unknown_type=False,target='All'):
         for obj in self.objects.values():
             if 'path' in obj:
                 if self.path_leaf(f_path) == self.path_leaf(obj.get('path')):
                     return []
 
-        return self.add_file(f_path, parent, tree, create_build_files, weak, ignore_unknown_type=ignore_unknown_type)
+        return self.add_file(f_path, parent, tree, create_build_files, weak, ignore_unknown_type=ignore_unknown_type,target=target)
 
-    def add_file(self, f_path, parent=None, tree='SOURCE_ROOT', create_build_files=True, weak=False, ignore_unknown_type=False):
+    def add_file(self, f_path, parent=None, tree='SOURCE_ROOT', create_build_files=True, weak=False, ignore_unknown_type=False,target='All'):
         results = []
         abs_path = ''
-
         if os.path.isabs(f_path):
             abs_path = f_path
 
@@ -889,17 +893,15 @@ class XcodeProject(PBXDict):
         file_ref = PBXFileReference.Create(f_path, tree, ignore_unknown_type=ignore_unknown_type)
         parent.add_child(file_ref)
         results.append(file_ref)
-
         # create a build file for the file ref
         if file_ref.build_phase and create_build_files:
-            phases = self.get_build_phases(file_ref.build_phase)
-
+            phases = self.get_build_phases(file_ref.build_phase,target=target)
+            #print phases
             for phase in phases:
                 build_file = PBXBuildFile.Create(file_ref, weak=weak)
 
                 phase.add_build_file(build_file)
                 results.append(build_file)
-
             if abs_path and tree == 'SOURCE_ROOT' \
                         and os.path.isfile(abs_path) \
                         and file_ref.build_phase == 'PBXFrameworksBuildPhase':
