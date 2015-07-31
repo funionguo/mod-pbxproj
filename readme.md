@@ -264,7 +264,7 @@ The above methods are simple aliases of this method using the specific key to ad
 To add any other flags, just specify the name of the flag and the values to be add to it.
 
 ```
-project.add_flags('OTHER_LDFLAGS', ['-ObjC', '-all_load', '-fobjc-arc'])
+project.add_flags({'OTHER_LDFLAGS':['-ObjC', '-all_load', '-fobjc-arc']},target='All',configuration='All')
 ```
 
 #### Remove flags
