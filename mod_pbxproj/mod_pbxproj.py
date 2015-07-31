@@ -580,51 +580,51 @@ class XcodeProject(PBXDict):
         for k, v in self.objects.iteritems():
             v.id = k
 
-    def add_other_cflags(self, flags):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
+    def add_other_cflags(self, flags,target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
 
         for b in build_configs:
             if b.add_other_cflags(flags):
                 self.modified = True
 
-    def add_other_ldflags(self, flags):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
+    def add_other_ldflags(self, flags,target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
 
         for b in build_configs:
             if b.add_other_ldflags(flags):
                 self.modified = True
 
-    def remove_other_ldflags(self, flags):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
+    def remove_other_ldflags(self, flags,target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
 
         for b in build_configs:
             if b.remove_other_ldflags(flags):
                 self.modified = True
 
-    def add_header_search_paths(self, paths, recursive=True):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
+    def add_header_search_paths(self, paths, recursive=True,target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
 
         for b in build_configs:
             if b.add_header_search_paths(paths, recursive):
                 self.modified = True
 
-    def add_framework_search_paths(self, paths, recursive=True):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
+    def add_framework_search_paths(self, paths, recursive=True,target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
 
         for b in build_configs:
             if b.add_framework_search_paths(paths, recursive):
                 self.modified = True
 
-    def add_library_search_paths(self, paths, recursive=True):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
+    def add_library_search_paths(self, paths, recursive=True,target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
 
         for b in build_configs:
             if b.add_library_search_paths(paths, recursive):
                 self.modified = True
 
-    def add_flags(self, pairs, configuration='All'):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
-
+    def add_flags(self, pairs, configuration='All',target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
+        print build_configs 
         # iterate over all the pairs of configurations
         for b in build_configs:
             if configuration != "All" and b.get('name') != configuration :
@@ -634,8 +634,8 @@ class XcodeProject(PBXDict):
                 if b.add_flag(k, pairs[k]):
                     self.modified = True
 
-    def remove_flags(self, pairs, configuration='All'):
-        build_configs = [b for b in self.objects.values() if b.get('isa') == 'XCBuildConfiguration']
+    def remove_flags(self, pairs, configuration='All',target='All'):
+        build_configs = self.get_build_configs('XCBuildConfiguration',target)
 
         # iterate over all the pairs of configurations
         for b in build_configs:
@@ -718,6 +718,19 @@ class XcodeProject(PBXDict):
                                                       and os.path.abspath(g.get('path', '/dev/null')) == path]
 
         return groups
+    def get_build_configs(self, phase_name,target='All'):
+        phase_keys = [p for p in self.objects.keys() if self.objects.get(p).get('isa') == phase_name]
+        if target == 'All':
+            return [self.objects.get(p) for p in phase_keys]
+        targets = [t for t in self.get_build_phases('PBXNativeTarget') + self.get_build_phases('PBXAggregateTarget') if t.get('name') == target]
+        target_phase_keys = []
+        for t in targets:
+            _t = t.get('buildConfigurationList')
+            if _t != None:
+                buildConfigurations = self.objects.get(_t).get("buildConfigurations")
+                if buildConfigurations != None:
+                    target_phase_keys += [p for p in phase_keys if p in buildConfigurations]
+        return [self.objects.get(p) for p in target_phase_keys]
 
     def get_build_phases(self, phase_name,target='All'):
         phase_keys = [p for p in self.objects.keys() if self.objects.get(p).get('isa') == phase_name]
